@@ -123,3 +123,23 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def update_password(self, email: str, hashed_password: str) -> User:
+        """Updates the stored password hash for a user identified by email.
+
+        Also clears any active refresh token so that previously issued sessions
+        are invalidated after a password change.
+
+        Args:
+            email (str): The email address of the user.
+            hashed_password (str): The new bcrypt password hash to store.
+
+        Returns:
+            User: The updated User database object.
+        """
+        user = await self.get_user_by_email(email)
+        user.hashed_password = hashed_password
+        user.refresh_token = None
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

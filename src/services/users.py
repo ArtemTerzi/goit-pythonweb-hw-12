@@ -103,3 +103,15 @@ class UserService:
             User: The updated User database record.
         """
         return await self.repository.update_avatar_url(email, url)
+
+    async def update_password(self, email: str, hashed_password: str):
+        """Updates the stored password hash for a specified user.
+
+        Args:
+            email (str): The email address of the user.
+            hashed_password (str): The new bcrypt password hash to store.
+
+        Returns:
+            User: The updated User database record.
+        """
+        return await self.repository.update_password(email, hashed_password)

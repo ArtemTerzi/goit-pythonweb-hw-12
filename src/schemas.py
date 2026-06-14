@@ -8,6 +8,8 @@ from datetime import datetime, date
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 
+from src.database.models import UserRole
+
 
 class ContactModel(BaseModel):
     """Pydantic model representing input data for creating a contact.
@@ -77,12 +79,14 @@ class User(BaseModel):
         username (str): The unique username of the user.
         email (EmailStr, optional): Validated email of the user. Max length 50. Defaults to None.
         avatar (str): URL path pointing to the user's avatar.
+        role (UserRole): Access role of the user ("user" or "admin").
     """
 
     id: int
     username: str
     email: EmailStr | None = Field(None, max_length=50)
     avatar: str
+    role: UserRole = UserRole.USER
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -133,3 +137,23 @@ class RequestEmail(BaseModel):
     """
 
     email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    """Pydantic model representing a request to start password recovery.
+
+    Attributes:
+        email (EmailStr): The email address of the account to recover.
+    """
+
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    """Pydantic model representing a payload to set a new password.
+
+    Attributes:
+        new_password (str): The new cleartext password. Min length 6.
+    """
+
+    new_password: str = Field(..., min_length=6, max_length=128)

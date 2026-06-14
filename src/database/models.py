@@ -5,7 +5,10 @@ the database schema for Users and Contacts.
 """
 
 from datetime import datetime, date
+from enum import Enum
+
 from sqlalchemy import Integer, String, func, ForeignKey, Boolean
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase, relationship
 from sqlalchemy.sql.sqltypes import DateTime, Date
 from typing import Optional
@@ -15,6 +18,19 @@ class Base(DeclarativeBase):
     """Base class for all SQLAlchemy Declarative models."""
 
     pass
+
+
+class UserRole(str, Enum):
+    """Enumeration of the access roles a user can have.
+
+    Attributes:
+        USER: A regular user with standard permissions.
+        ADMIN: An administrator with elevated permissions (e.g. changing
+            the default avatar).
+    """
+
+    USER = "user"
+    ADMIN = "admin"
 
 
 class Contact(Base):
@@ -67,6 +83,7 @@ class User(Base):
         created_at (datetime): Timestamp when the user registered.
         updated_at (datetime): Timestamp when the user profile was last updated.
         avatar (str, optional): URL path to the user's avatar image.
+        role (UserRole): Access role of the user ("user" or "admin").
         contacts (list[Contact]): List of contacts owned by this user.
     """
 
@@ -84,4 +101,7 @@ class User(Base):
         "updated_at", DateTime, default=func.now(), onupdate=func.now()
     )
     avatar: Mapped[str] = mapped_column(String(200), nullable=True)
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(UserRole), default=UserRole.USER, nullable=False
+    )
     contacts: Mapped[list["Contact"]] = relationship("Contact", back_populates="user")

@@ -20,6 +20,7 @@ An asynchronous web application based on **FastAPI** and **SQLAlchemy 2.0**, des
 * **Poetry** (virtual environment and dependency management)
 * **Docker & Docker Compose** (containerization)
 * **Cloudinary** (user avatar storage and transformation)
+* **Redis** (caching the authenticated user to offload the database)
 * **Slowapi** (rate limiting for spam protection)
 * **Bcrypt / Jose (python-jose)** (password hashing and JWT token operations)
 
@@ -57,6 +58,16 @@ MAIL_SERVER=smtp.gmail.com
 CLOUDINARY_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Redis configuration for caching the current user
+# (use host "redis" for Docker, or "localhost" for a local run)
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_CACHE_TTL=900
+
+# Lifetime (in minutes) of the password reset token
+JWT_RESET_TOKEN_EXPIRE_MINUTES=60
 ```
 
 ---
@@ -124,12 +135,14 @@ All requests to contacts and user profiles require authorization via the `Author
 | **POST** | `/api/auth/login` | User login (returns Access and Refresh tokens) |
 | **POST** | `/api/auth/refresh-token` | Refresh Access token using Refresh token |
 | **GET** | `/api/auth/secret` | Protected route for testing access |
+| **POST** | `/api/auth/reset_password` | Request a password reset link by email |
+| **POST** | `/api/auth/reset_password/{token}` | Set a new password using the emailed reset token |
 
 #### 👤 Users (`/api/users`)
 | Method | Route | Description |
 | :--- | :--- | :--- |
 | **GET** | `/api/users/me` | Retrieve the current authorized user's profile |
-| **PATCH** | `/api/users/avatar` | Update user avatar (upload file to Cloudinary) |
+| **PATCH** | `/api/users/avatar` | Update user avatar (upload to Cloudinary). **Admins only** (`role = admin`); regular users receive `403 Forbidden` |
 
 #### 📞 Contacts (`/api/contacts`)
 | Method | Route | Description |
@@ -151,6 +164,14 @@ To prevent overload or abuse of resources, **`slowapi`** is integrated.
 
 ---
 
+### ✨ Key Features
+
+* **Redis caching of the current user.** On every authorized request, `get_current_user` first looks the user up in Redis (key `user:{username}`). The database is queried only on a cache miss, after which the user is cached with a configurable TTL (`REDIS_CACHE_TTL`). The cache is invalidated on login, token refresh, password reset, and avatar change. If Redis is unavailable, the application degrades gracefully and falls back to direct database access.
+* **Password reset.** `POST /api/auth/reset_password` emails a short-lived, single-purpose JWT (`token_type = "reset"`); `POST /api/auth/reset_password/{token}` validates it and stores the new password hash (clearing the refresh token to invalidate old sessions). To avoid account enumeration, the request endpoint always returns the same generic message regardless of whether the email exists.
+* **User roles and access control.** Each user has a `role` of either `user` or `admin`. A reusable `RoleAccess` dependency enforces role requirements; the avatar update endpoint is restricted to administrators via `get_admin_user`.
+
+---
+
 <a name="українська"></a>
 ## Українська версія
 
@@ -167,6 +188,7 @@ To prevent overload or abuse of resources, **`slowapi`** is integrated.
 * **Poetry** (керування віртуальним середовищем та залежностями)
 * **Docker & Docker Compose** (контейнеризація бази даних та додатку)
 * **Cloudinary** (збереження та трансформація аватарів користувачів)
+* **Redis** (кешування авторизованого користувача для розвантаження бази даних)
 * **Slowapi** (обмеження кількості запитів для захисту від спаму)
 * **Bcrypt / Jose (python-jose)** (хешування паролів та робота з JWT-токенами)
 
@@ -204,6 +226,16 @@ MAIL_SERVER=smtp.gmail.com
 CLOUDINARY_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Налаштування Redis для кешування поточного користувача
+# (використовуйте хост "redis" для Docker, або "localhost" для локального запуску)
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_CACHE_TTL=900
+
+# Час життя (у хвилинах) токена для скидання пароля
+JWT_RESET_TOKEN_EXPIRE_MINUTES=60
 ```
 
 ---
@@ -271,12 +303,14 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 | **POST** | `/api/auth/login` | Вхід користувача (повертає Access та Refresh токени) |
 | **POST** | `/api/auth/refresh-token` | Оновлення Access токена за допомогою Refresh токена |
 | **GET** | `/api/auth/secret` | Тестовий захищений маршрут для перевірки доступу |
+| **POST** | `/api/auth/reset_password` | Запит на надсилання листа для скидання пароля |
+| **POST** | `/api/auth/reset_password/{token}` | Встановлення нового пароля за токеном із листа |
 
 #### 👤 Користувачі (`/api/users`)
 | Метод | Маршрут | Опис |
 | :--- | :--- | :--- |
 | **GET** | `/api/users/me` | Отримання профілю поточного авторизованого користувача |
-| **PATCH** | `/api/users/avatar` | Оновлення аватара користувача (завантаження файлу на Cloudinary) |
+| **PATCH** | `/api/users/avatar` | Оновлення аватара (завантаження на Cloudinary). **Лише для адміністраторів** (`role = admin`); звичайні користувачі отримують `403 Forbidden` |
 
 #### 📞 Контакти (`/api/contacts`)
 | Метод | Маршрут | Опис |
@@ -295,3 +329,11 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 Для запобігання перевантаженню або зловживанню ресурсами (наприклад, DDoS-атакам) інтегровано бібліотеку **`slowapi`**. 
 * Ендпоінти створення та оновлення користувачів / контактів мають ліміти на кількість запитів за хвилину з однієї IP-адреси.
 * У разі перевищення ліміту сервер поверне помилку `429 Too Many Requests`.
+
+---
+
+### ✨ Ключові можливості
+
+* **Кешування поточного користувача в Redis.** На кожен авторизований запит функція `get_current_user` спершу шукає користувача в Redis (ключ `user:{username}`). До бази даних застосунок звертається лише за відсутності запису в кеші, після чого користувач кешується із заданим часом життя (`REDIS_CACHE_TTL`). Кеш скидається під час входу, оновлення токенів, скидання пароля та зміни аватара. Якщо Redis недоступний, застосунок продовжує працювати, звертаючись напряму до бази даних.
+* **Скидання пароля.** `POST /api/auth/reset_password` надсилає короткоживучий одноразовий JWT (`token_type = "reset"`); `POST /api/auth/reset_password/{token}` перевіряє його та зберігає новий хеш пароля (очищаючи refresh-токен, щоб завершити старі сесії). Щоб уникнути розкриття зареєстрованих адрес, ендпоінт запиту завжди повертає однакове повідомлення незалежно від наявності користувача.
+* **Ролі користувачів і доступ.** Кожен користувач має роль `user` або `admin`. Універсальна залежність `RoleAccess` перевіряє роль; оновлення аватара дозволено лише адміністраторам через залежність `get_admin_user`.

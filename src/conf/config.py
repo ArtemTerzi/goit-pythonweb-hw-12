@@ -33,6 +33,11 @@ class Settings(BaseSettings):
         CLOUDINARY_NAME (str): Target Cloudinary cloud namespace.
         CLOUDINARY_API_KEY (int): Public API key for Cloudinary integrations.
         CLOUDINARY_API_SECRET (str): Private API secret key for Cloudinary integrations.
+        REDIS_HOST (str): Hostname of the Redis server. Defaults to "localhost".
+        REDIS_PORT (int): Connection port of the Redis server. Defaults to 6379.
+        REDIS_PASSWORD (str, optional): Password for the Redis server. Defaults to None.
+        REDIS_CACHE_TTL (int): Time-to-live (in seconds) for cached users. Defaults to 900.
+        JWT_RESET_TOKEN_EXPIRE_MINUTES (int): Lifespan of password reset tokens in minutes. Defaults to 60.
     """
 
     DB_URL: str
@@ -56,6 +61,13 @@ class Settings(BaseSettings):
     CLOUDINARY_NAME: str
     CLOUDINARY_API_KEY: int
     CLOUDINARY_API_SECRET: str
+
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str | None = None
+    REDIS_CACHE_TTL: int = 900
+
+    JWT_RESET_TOKEN_EXPIRE_MINUTES: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

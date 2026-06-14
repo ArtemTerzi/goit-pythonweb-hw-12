@@ -22,3 +22,13 @@ FAILED_CONNECT_TO_DB = "Error connecting to the database"
 BAD_CONFIG_DB = "Database is not configured correctly"
 SUCCESSFUL_HEALTHCHECK = "Welcome to FastAPI!"
 DB_SESSION_IS_NOT_INIT = "Database session is not initialized"
+
+# --- Password reset ---
+PASSWORD_RESET_EMAIL_SENT = (
+    "If an account with that email exists, a password reset link has been sent."
+)
+PASSWORD_RESET_SUCCESS = "Your password has been reset successfully"
+INVALID_RESET_TOKEN = "Invalid or expired password reset token"
+
+# --- Roles / access control ---
+INSUFFICIENT_PERMISSIONS = "You do not have permission to perform this action"

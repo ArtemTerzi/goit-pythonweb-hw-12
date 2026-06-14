@@ -11,7 +11,8 @@ from slowapi.util import get_remote_address
 
 from src.database.db import get_db
 from src.schemas import User
-from src.services.auth import get_current_user
+from src.services.auth import get_current_user, get_admin_user
+from src.services.cache import user_cache
 from src.services.upload_file import UploadFileService
 from src.services.users import UserService
 from src.conf.config import config
@@ -41,21 +42,27 @@ async def me(request: Request, user: User = Depends(get_current_user)):
 @router.patch("/avatar", response_model=User)
 async def update_avatar_user(
     file: UploadFile = File(),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Uploads a new avatar file and updates the user's profile in the database.
+    """Uploads a new avatar and updates the user's profile. Admins only.
 
-    Integrates with the Cloudinary service to store the uploaded image file,
-    then updates the user's database record with the newly generated secure image URL.
+    This endpoint is restricted to users with the ``admin`` role: only
+    administrators may replace their default avatar. Integrates with the
+    Cloudinary service to store the uploaded image, updates the user's database
+    record with the new secure URL, and invalidates the cached user so the
+    change is reflected immediately.
 
     Args:
         file (UploadFile): The raw image file uploaded by the user. Defaults to File().
-        user (User): The currently authenticated user. Defaults to Depends(get_current_user).
+        user (User): The currently authenticated admin user. Defaults to Depends(get_admin_user).
         db (AsyncSession): Asynchronous database session. Defaults to Depends(get_db).
 
     Returns:
         User: The updated user schema containing the new avatar URL.
+
+    Raises:
+        HTTPException: If the current user is not an administrator (403 Forbidden).
     """
     avatar_url = UploadFileService(
         config.CLOUDINARY_NAME, config.CLOUDINARY_API_KEY, config.CLOUDINARY_API_SECRET
@@ -63,5 +70,6 @@ async def update_avatar_user(
 
     user_service = UserService(db)
     user = await user_service.update_avatar_url(user.email, avatar_url)
+    await user_cache.invalidate_user(user.username)
 
     return user
