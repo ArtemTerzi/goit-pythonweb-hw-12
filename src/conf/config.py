@@ -5,7 +5,7 @@ using Pydantic's BaseSettings.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import EmailStr
+from pydantic import EmailStr, field_validator
 
 
 class Settings(BaseSettings):
@@ -68,6 +68,29 @@ class Settings(BaseSettings):
     REDIS_CACHE_TTL: int = 900
 
     JWT_RESET_TOKEN_EXPIRE_MINUTES: int = 60
+
+    @field_validator("DB_URL")
+    @classmethod
+    def _normalize_db_url(cls, v: str) -> str:
+        """Ensures the database URL uses the async (asyncpg) driver.
+
+        Managed Postgres providers such as Render and Heroku hand out
+        connection strings with the ``postgres://`` or ``postgresql://`` scheme,
+        but ``create_async_engine`` requires the asyncpg driver. This validator
+        rewrites those schemes to ``postgresql+asyncpg://`` while leaving an
+        already-correct URL untouched.
+
+        Args:
+            v (str): The raw database URL from the environment.
+
+        Returns:
+            str: A URL guaranteed to use the ``postgresql+asyncpg`` driver.
+        """
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
