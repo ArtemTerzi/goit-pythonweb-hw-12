@@ -136,6 +136,7 @@ All requests to contacts and user profiles require authorization via the `Author
 | **POST** | `/api/auth/refresh-token` | Refresh Access token using Refresh token |
 | **GET** | `/api/auth/secret` | Protected route for testing access |
 | **POST** | `/api/auth/reset_password` | Request a password reset link by email |
+| **GET** | `/api/auth/reset_password/{token}` | Render the HTML page with the new-password form (the link from the email) |
 | **POST** | `/api/auth/reset_password/{token}` | Set a new password using the emailed reset token |
 
 #### 👤 Users (`/api/users`)
@@ -167,7 +168,7 @@ To prevent overload or abuse of resources, **`slowapi`** is integrated.
 ### ✨ Key Features
 
 * **Redis caching of the current user.** On every authorized request, `get_current_user` first looks the user up in Redis (key `user:{username}`). The database is queried only on a cache miss, after which the user is cached with a configurable TTL (`REDIS_CACHE_TTL`). The cache is invalidated on login, token refresh, password reset, and avatar change. If Redis is unavailable, the application degrades gracefully and falls back to direct database access.
-* **Password reset.** `POST /api/auth/reset_password` emails a short-lived, single-purpose JWT (`token_type = "reset"`); `POST /api/auth/reset_password/{token}` validates it and stores the new password hash (clearing the refresh token to invalidate old sessions). To avoid account enumeration, the request endpoint always returns the same generic message regardless of whether the email exists.
+* **Password reset.** `POST /api/auth/reset_password` emails a short-lived, single-purpose JWT (`token_type = "reset"`). The link in the email opens `GET /api/auth/reset_password/{token}`, which renders an HTML page with a new-password form; that page submits a `POST` to the same URL, which validates the token and stores the new password hash (clearing the refresh token to invalidate old sessions). To avoid account enumeration, the request endpoint always returns the same generic message regardless of whether the email exists.
 * **User roles and access control.** Each user has a `role` of either `user` or `admin`. A reusable `RoleAccess` dependency enforces role requirements; the avatar update endpoint is restricted to administrators via `get_admin_user`.
 
 ---
@@ -304,6 +305,7 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 | **POST** | `/api/auth/refresh-token` | Оновлення Access токена за допомогою Refresh токена |
 | **GET** | `/api/auth/secret` | Тестовий захищений маршрут для перевірки доступу |
 | **POST** | `/api/auth/reset_password` | Запит на надсилання листа для скидання пароля |
+| **GET** | `/api/auth/reset_password/{token}` | HTML-сторінка з формою для введення нового пароля (посилання з листа) |
 | **POST** | `/api/auth/reset_password/{token}` | Встановлення нового пароля за токеном із листа |
 
 #### 👤 Користувачі (`/api/users`)
@@ -335,5 +337,5 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ### ✨ Ключові можливості
 
 * **Кешування поточного користувача в Redis.** На кожен авторизований запит функція `get_current_user` спершу шукає користувача в Redis (ключ `user:{username}`). До бази даних застосунок звертається лише за відсутності запису в кеші, після чого користувач кешується із заданим часом життя (`REDIS_CACHE_TTL`). Кеш скидається під час входу, оновлення токенів, скидання пароля та зміни аватара. Якщо Redis недоступний, застосунок продовжує працювати, звертаючись напряму до бази даних.
-* **Скидання пароля.** `POST /api/auth/reset_password` надсилає короткоживучий одноразовий JWT (`token_type = "reset"`); `POST /api/auth/reset_password/{token}` перевіряє його та зберігає новий хеш пароля (очищаючи refresh-токен, щоб завершити старі сесії). Щоб уникнути розкриття зареєстрованих адрес, ендпоінт запиту завжди повертає однакове повідомлення незалежно від наявності користувача.
+* **Скидання пароля.** `POST /api/auth/reset_password` надсилає короткоживучий одноразовий JWT (`token_type = "reset"`). Посилання з листа відкриває `GET /api/auth/reset_password/{token}` — HTML-сторінку з формою для нового пароля; ця сторінка надсилає `POST` на ту саму адресу, який перевіряє токен і зберігає новий хеш пароля (очищаючи refresh-токен, щоб завершити старі сесії). Щоб уникнути розкриття зареєстрованих адрес, ендпоінт запиту завжди повертає однакове повідомлення незалежно від наявності користувача.
 * **Ролі користувачів і доступ.** Кожен користувач має роль `user` або `admin`. Універсальна залежність `RoleAccess` перевіряє роль; оновлення аватара дозволено лише адміністраторам через залежність `get_admin_user`.

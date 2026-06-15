@@ -13,6 +13,9 @@ from fastapi import (
     BackgroundTasks,
     Request,
 )
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 from src.schemas import (
@@ -31,7 +34,7 @@ from src.services.auth import (
     get_current_user,
     Hash,
     get_email_from_token,
-    get_email_from_reset_token,
+    verify_reset_token,
 )
 from src.services.users import UserService
 from src.services.cache import user_cache
@@ -41,6 +44,10 @@ from src.services.email import send_email, send_reset_password_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 hash_handler = Hash()
+
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent.parent / "services" / "templates")
+)
 
 
 @router.post("/signup", response_model=User, status_code=status.HTTP_201_CREATED)
@@ -293,6 +300,41 @@ async def request_reset_password(
     return {"message": messages.PASSWORD_RESET_EMAIL_SENT}
 
 
+@router.get(
+    "/reset_password/{token}",
+    response_class=HTMLResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password_form(
+    token: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Renders the HTML page where the user enters a new password.
+
+    This is the page the user lands on when clicking the link from the reset
+    email. The token is validated up front: if it is invalid, expired, or
+    belongs to a user that no longer exists, an error state is rendered instead
+    of the form. On submit, the page itself sends a POST request to this same
+    URL (see ``reset_password``).
+
+    Args:
+        token (str): The password reset token from the emailed link.
+        request (Request): The incoming HTTP request (required by the templating engine).
+        db (AsyncSession): Asynchronous database session. Defaults to Dependency(get_db).
+
+    Returns:
+        HTMLResponse: The rendered password reset page.
+    """
+    user = await verify_reset_token(token, db)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="reset_password_form.html",
+        context={"invalid_token": user is None, "token": token},
+    )
+
+
 @router.post("/reset_password/{token}", status_code=status.HTTP_200_OK)
 async def reset_password(
     token: str,
@@ -317,10 +359,7 @@ async def reset_password(
         HTTPException: If the token is invalid/expired (400) or the user no
             longer exists (400).
     """
-    email = await get_email_from_reset_token(token)
-
-    user_service = UserService(db)
-    user = await user_service.get_user_by_email(email)
+    user = await verify_reset_token(token, db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -328,7 +367,7 @@ async def reset_password(
         )
 
     hashed_password = hash_handler.get_password_hash(body.new_password)
-    await user_service.update_password(email, hashed_password)
+    await UserService(db).update_password(user.email, hashed_password)
     await user_cache.invalidate_user(user.username)
 
     return {"message": messages.PASSWORD_RESET_SUCCESS}

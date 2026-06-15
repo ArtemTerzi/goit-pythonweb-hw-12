@@ -286,6 +286,36 @@ async def test_reset_password_unknown_user(client):
     assert response.json()["detail"] == messages.INVALID_RESET_TOKEN
 
 
+async def test_reset_password_form_valid_token(client):
+    """The GET link from the email renders the HTML form for a valid token."""
+    token = create_reset_password_token({"sub": reset_user["email"]})
+    response = await client.get(f"/api/auth/reset_password/{token}")
+    assert response.status_code == 200, response.text
+    assert "text/html" in response.headers["content-type"]
+    body = response.text
+    assert "<form" in body
+    assert 'id="new_password"' in body
+
+
+async def test_reset_password_form_invalid_token(client):
+    """An invalid token renders the error state without a form."""
+    response = await client.get("/api/auth/reset_password/not-a-valid-token")
+    assert response.status_code == 200, response.text
+    assert "text/html" in response.headers["content-type"]
+    body = response.text.lower()
+    assert "invalid or has expired" in body
+    assert "<form" not in body
+
+
+async def test_reset_password_form_unknown_user(client):
+    """A valid token whose user no longer exists renders the error state."""
+    token = create_reset_password_token({"sub": "ghost@example.com"})
+    response = await client.get(f"/api/auth/reset_password/{token}")
+    assert response.status_code == 200, response.text
+    assert "invalid or has expired" in response.text.lower()
+    assert "<form" not in response.text.lower()
+
+
 async def test_reset_password_success_and_login(client):
     """A valid reset changes the password; old fails, new works."""
     token = create_reset_password_token({"sub": reset_user["email"]})

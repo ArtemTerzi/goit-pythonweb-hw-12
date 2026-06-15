@@ -70,12 +70,8 @@ class UserCache:
             "confirmed": user.confirmed,
             "avatar": user.avatar,
             "role": role.value if isinstance(role, UserRole) else role,
-            "created_at": (
-                user.created_at.isoformat() if user.created_at else None
-            ),
-            "updated_at": (
-                user.updated_at.isoformat() if user.updated_at else None
-            ),
+            "created_at": (user.created_at.isoformat() if user.created_at else None),
+            "updated_at": (user.updated_at.isoformat() if user.updated_at else None),
         }
         return json.dumps(data)
 

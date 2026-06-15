@@ -295,6 +295,29 @@ async def get_email_from_reset_token(token: str) -> str:
         )
 
 
+async def verify_reset_token(token: str, db: AsyncSession) -> User | None:
+    """Resolves the user a password reset token belongs to.
+
+    Decodes and validates the reset token and looks up the associated user.
+    Unlike the route handlers, this helper does not raise: it returns ``None``
+    whenever the token is invalid/expired or the user no longer exists, leaving
+    it up to the caller to decide how to respond (render an error page, raise an
+    HTTP error, etc.).
+
+    Args:
+        token (str): The raw password reset token from the emailed link.
+        db (AsyncSession): Asynchronous database session.
+
+    Returns:
+        User | None: The matching User, or None if the token or user is invalid.
+    """
+    try:
+        email = await get_email_from_reset_token(token)
+    except HTTPException:
+        return None
+    return await UserService(db).get_user_by_email(email)
+
+
 class RoleAccess:
     """FastAPI dependency enforcing that the current user has an allowed role.
 

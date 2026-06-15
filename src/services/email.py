@@ -82,7 +82,7 @@ async def send_reset_password_email(email: EmailStr, username: str, host: str):
     try:
         reset_token = create_reset_password_token({"sub": email})
         message = MessageSchema(
-            subject="Reset your password",
+            subject="Account password update",
             recipients=[email],
             template_body={
                 "host": host,

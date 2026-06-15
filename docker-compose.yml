@@ -31,7 +31,6 @@ services:
     env_file:
       - .env
     environment:
-      # Override .env so the app reaches the services by their compose names.
       REDIS_HOST: redis
     depends_on:
       - db
