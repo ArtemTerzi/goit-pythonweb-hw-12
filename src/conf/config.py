@@ -25,19 +25,19 @@ class Settings(BaseSettings):
         JWT_ALGORITHM (str): Encryption algorithm used for JWT operations.
         JWT_REFRESH_TOKEN_EXPIRE_MINUTES (int): Lifespan duration of refresh tokens in minutes.
         JWT_ACCESS_TOKEN_EXPIRE_MINUTES (int): Lifespan duration of access tokens in minutes.
-        MAIL_USERNAME (EmailStr): Username used for SMTP server authentication.
-        MAIL_PASSWORD (str): Password used for SMTP server authentication.
-        MAIL_FROM (EmailStr): Default sender email address used for outbound messages.
-        MAIL_PORT (int): Connection port of the SMTP server.
-        MAIL_SERVER (str): Hostname or IP of the SMTP server.
+        MAIL_USERNAME (EmailStr): SMTP auth username. Defaults to a placeholder so the app boots without mail configured.
+        MAIL_PASSWORD (str): Password used for SMTP server authentication. Defaults to "".
+        MAIL_FROM (EmailStr): Default sender email address used for outbound messages. Defaults to a placeholder.
+        MAIL_PORT (int): Connection port of the SMTP server. Defaults to 465.
+        MAIL_SERVER (str): Hostname or IP of the SMTP server. Defaults to "smtp.example.com".
         MAIL_FROM_NAME (str): Visible sender name on outbound emails. Defaults to "Contacts API Service".
         MAIL_STARTTLS (bool): Enable or disable STARTTLS for SMTP. Defaults to False.
         MAIL_SSL_TLS (bool): Enable or disable SSL/TLS secure connection. Defaults to True.
         USE_CREDENTIALS (bool): Dictates whether to use credentials during SMTP connection. Defaults to True.
         VALIDATE_CERTS (bool): Dictates whether to validate SSL certificates. Defaults to True.
-        CLOUDINARY_NAME (str): Target Cloudinary cloud namespace.
-        CLOUDINARY_API_KEY (int): Public API key for Cloudinary integrations.
-        CLOUDINARY_API_SECRET (str): Private API secret key for Cloudinary integrations.
+        CLOUDINARY_NAME (str): Target Cloudinary cloud namespace. Defaults to "" (avatar upload disabled until set).
+        CLOUDINARY_API_KEY (int): Public API key for Cloudinary integrations. Defaults to 0.
+        CLOUDINARY_API_SECRET (str): Private API secret key for Cloudinary integrations. Defaults to "".
         REDIS_HOST (str): Hostname of the Redis server. Defaults to "localhost".
         REDIS_PORT (int): Connection port of the Redis server. Defaults to 6379.
         REDIS_PASSWORD (str, optional): Password for the Redis server. Defaults to None.
@@ -57,20 +57,20 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    MAIL_USERNAME: EmailStr
-    MAIL_PASSWORD: str
-    MAIL_FROM: EmailStr
-    MAIL_PORT: int
-    MAIL_SERVER: str
+    MAIL_USERNAME: EmailStr = "example@example.com"
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: EmailStr = "example@example.com"
+    MAIL_PORT: int = 465
+    MAIL_SERVER: str = "smtp.example.com"
     MAIL_FROM_NAME: str = "Contacts API Service"
     MAIL_STARTTLS: bool = False
     MAIL_SSL_TLS: bool = True
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = True
 
-    CLOUDINARY_NAME: str
-    CLOUDINARY_API_KEY: int
-    CLOUDINARY_API_SECRET: str
+    CLOUDINARY_NAME: str = ""
+    CLOUDINARY_API_KEY: int = 0
+    CLOUDINARY_API_SECRET: str = ""
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
