@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     coercing them into respective typed Python fields.
 
     Attributes:
+        POSTGRES_USER (str): PostgreSQL user. Shared with docker-compose. Defaults to "postgres".
+        POSTGRES_PASSWORD (str): PostgreSQL password. Shared with docker-compose. Defaults to "postgres".
+        POSTGRES_DB (str): PostgreSQL database name. Shared with docker-compose. Defaults to "contacts".
+        POSTGRES_HOST (str): Database host. Defaults to "localhost" (overridden to "db" in docker-compose).
+        POSTGRES_PORT (int): Database port. Defaults to 5434 (overridden to 5432 in docker-compose).
         DB_URL (str): Connection URL string for the PostgreSQL database.
         JWT_SECRET (str): Cryptographic secret key used to sign JWT signatures.
         JWT_ALGORITHM (str): Encryption algorithm used for JWT operations.
@@ -40,8 +45,13 @@ class Settings(BaseSettings):
         JWT_RESET_TOKEN_EXPIRE_MINUTES (int): Lifespan of password reset tokens in minutes. Defaults to 60.
     """
 
-    DB_URL: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
 
+    DB_URL: str
     JWT_SECRET: str
     JWT_ALGORITHM: str
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int
