@@ -39,7 +39,8 @@ services:
       - db
       - redis
     command: >
-      sh -c "poetry run alembic upgrade head && 
+      sh -c "poetry run alembic upgrade head &&
+             (poetry run python seed.py || echo '[compose] seeding failed (non-fatal), continuing') &&
              poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - .:/app

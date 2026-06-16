@@ -55,6 +55,7 @@ The easiest way to run the entire project (FastAPI web server and PostgreSQL dat
 3. The server will automatically run `alembic upgrade head` to create tables and start at:
    * **Application:** `http://localhost:8001` (according to the `8001:8000` port mapping in your compose file).
    * **Documentation (Swagger UI):** `http://localhost:8001/docs`.
+4. On startup the container also runs `seed.py`, so you can log in immediately with a seeded account (e.g. `admin@example.com` / `admin12345`) — see [Seed Users](#-seed-users).
 
 ---
 
@@ -266,6 +267,7 @@ cp .env.example .env
 3. Сервер автоматично виконає команду `alembic upgrade head` для створення таблиць і запуститься за адресою:
    * **Додаток:** `http://localhost:8001` (відповідно до конфігурації портів `8001:8000` у вашому compose-файлі).
    * **Документація (Swagger UI):** `http://localhost:8001/docs`.
+4. Під час старту контейнер також запускає `seed.py`, тож можна одразу залогінитись seed-акаунтом (напр. `admin@example.com` / `admin12345`) — див. [Початкові користувачі](#-початкові-користувачі-seed).
 
 ---
 
