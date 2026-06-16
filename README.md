@@ -28,47 +28,18 @@ An asynchronous web application based on **FastAPI** and **SQLAlchemy 2.0**, des
 
 ### ⚙️ Environment Variables Configuration
 
-Before running the application, create a **`.env`** file in the root directory of the project (next to `.env.example`) and fill it with configuration data.
+The project ships with a ready-to-use **`.env.example`** filled with safe placeholder values (no real credentials). For a quick start you can simply copy it — the application boots as-is:
 
-#### `.env` File Example:
-
-```env
-# Parameters for PostgreSQL Docker container
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres_password
-POSTGRES_DB=contacts_db
-
-# Connection string for FastAPI (use host "db" for Docker, or "localhost" for local run)
-DB_URL=postgresql+asyncpg://postgres:postgres_password@db:5432/contacts_db
-
-# Security and JWT token configuration
-JWT_SECRET=your_secret_string_for_jwt_signatures
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRE_MINUTES=10080
-
-# Mail server (SMTP) configuration
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-MAIL_FROM=your_email@gmail.com
-MAIL_PORT=465
-MAIL_SERVER=smtp.gmail.com
-
-# Cloudinary integration for avatar storage
-CLOUDINARY_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-
-# Redis configuration for caching the current user
-# (use host "redis" for Docker, or "localhost" for a local run)
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_CACHE_TTL=900
-
-# Lifetime (in minutes) of the password reset token
-JWT_RESET_TOKEN_EXPIRE_MINUTES=60
+```bash
+cp .env.example .env
 ```
+
+A few things worth knowing:
+
+* **`POSTGRES_*`** are the single source of truth for the database connection — `DB_URL` is assembled from them automatically, so you never edit it by hand. `POSTGRES_PORT=5434` matches the bundled docker `db` container's external port; set it to `5432` if you connect to your own local PostgreSQL.
+* **`JWT_SECRET`** — change it to your own long random string for anything beyond local development.
+* **`MAIL_*`** and **`CLOUDINARY_*`** are optional: the app starts without them (email sending and avatar upload simply stay disabled until you provide real values).
+* **`REDIS_*`** are optional too: if Redis is unavailable, the user cache degrades gracefully to direct database access.
 
 ---
 
@@ -84,43 +55,112 @@ The easiest way to run the entire project (FastAPI web server and PostgreSQL dat
 3. The server will automatically run `alembic upgrade head` to create tables and start at:
    * **Application:** `http://localhost:8001` (according to the `8001:8000` port mapping in your compose file).
    * **Documentation (Swagger UI):** `http://localhost:8001/docs`.
+4. On startup the container also runs `seed.py`, so you can log in immediately with a seeded account (e.g. `admin@example.com` / `admin12345`) — see [Seed Users](#-seed-users).
 
 ---
 
 ### 💻 Local Run (without Docker Compose)
 
-If you want to run the database in Docker but execute the application locally:
+If you want to run the database in Docker but execute the application on the host:
 
-#### 1. Start only the database in Docker
-Run the PostgreSQL container (it will expose port `5434` to your computer):
+#### 1. Start the database (and optionally Redis) in Docker
 ```bash
 docker compose up -d db
+# optionally, to enable the cache layer locally:
+docker compose up -d db redis
 ```
+> Redis is optional — if it is not running, the cache degrades gracefully to direct DB access.
 
-#### 2. Update `.env` for local execution
-Since the app will run on the host machine, change `DB_URL` in your `.env` to point to `localhost` and use the external port `5434`:
-```env
-DB_URL=postgresql+asyncpg://postgres:postgres_password@localhost:5434/contacts_db
+#### 2. Prepare `.env`
+Copy the template; its defaults (`POSTGRES_HOST=localhost`, `POSTGRES_PORT=5434`) already match the bundled `db` container:
+```bash
+cp .env.example .env
 ```
+> If you use your own local PostgreSQL instead of the `db` container, set `POSTGRES_PORT=5432` (and the matching user/password) in `.env`.
 
-#### 3. Install dependencies and activate the virtual environment
+#### 3. Install dependencies
 ```bash
 poetry install
-poetry shell
 ```
 
 #### 4. Run database migrations
+This creates the database automatically if it doesn't exist yet, then applies all migrations:
 ```bash
 poetry run alembic upgrade head
 ```
 
-#### 5. Start the development server
+#### 5. (Optional) Seed pre-confirmed users
+Creates ready-to-use accounts so you can log in without registering:
+```bash
+poetry run python seed.py
+```
+
+#### 6. Start the development server
 ```bash
 poetry run python main.py
 # or
 poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 The application will be available at `http://127.0.0.1:8000/docs`.
+
+---
+
+### 👥 Seed Users
+
+Running `seed.py` inserts the following **already-confirmed** accounts, so you can log in immediately via `POST /api/auth/login` without registration or email confirmation. The script is idempotent (existing users are skipped by email), so it is safe to run repeatedly.
+
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| `admin` | `admin@example.com` | `admin12345` |
+| `user` | `user@example.com` | `user12345` |
+
+> These are local-development credentials — change the `SEED_USERS` list in `seed.py` for anything else.
+
+---
+
+### 🧪 Running Tests
+
+The test suite is **fully self-contained** — it runs against an in-memory SQLite database and an in-memory Redis fake (`fakeredis`). You need **no `.env` file, no PostgreSQL, and no Redis** to run it: the required settings are provided automatically by `tests/conftest.py`, so a fresh clone can run the tests immediately.
+
+#### 1. Install dependencies (includes the dev tools)
+```bash
+poetry install
+```
+
+#### 2. Run the whole suite
+```bash
+poetry run pytest
+```
+
+#### 3. Useful variations
+```bash
+poetry run pytest -v                                                  # one line per test
+poetry run pytest tests/test_integration_auth.py                      # a single file
+poetry run pytest tests/test_integration_auth.py::test_login_success  # a single test
+poetry run pytest -x                                                  # stop at the first failure
+```
+
+#### 4. Coverage report
+Coverage is pre-configured in `pyproject.toml` (it measures the `src` package and omits the e-mail helper). For a terminal report listing the uncovered lines:
+```bash
+poetry run pytest --cov=src --cov-report=term-missing
+```
+For a browsable HTML report (then open `htmlcov/index.html`):
+```bash
+poetry run pytest --cov=src --cov-report=html
+```
+> Current total coverage is ~94%.
+
+#### What the tests cover
+| File | Type | Scope |
+| :--- | :--- | :--- |
+| `tests/test_user_repository_unit.py` | Unit | User repository methods (mocked DB session) |
+| `tests/test_contact_repository_unit.py` | Unit | Contact repository methods (mocked DB session) |
+| `tests/test_cache_unit.py` | Unit | Redis user-cache serialization and invalidation |
+| `tests/test_integration_auth.py` | Integration | Signup, login, token refresh, email confirmation, password reset |
+| `tests/test_integration_users.py` | Integration | Profile (`/me`) and role-restricted avatar update |
+| `tests/test_intrgration_contacts.py` | Integration | Contacts CRUD, search, upcoming birthdays |
+| `tests/test_integration_utils.py` | Integration | Health-check endpoint |
 
 ---
 
@@ -170,6 +210,9 @@ To prevent overload or abuse of resources, **`slowapi`** is integrated.
 * **Redis caching of the current user.** On every authorized request, `get_current_user` first looks the user up in Redis (key `user:{username}`). The database is queried only on a cache miss, after which the user is cached with a configurable TTL (`REDIS_CACHE_TTL`). The cache is invalidated on login, token refresh, password reset, and avatar change. If Redis is unavailable, the application degrades gracefully and falls back to direct database access.
 * **Password reset.** `POST /api/auth/reset_password` emails a short-lived, single-purpose JWT (`token_type = "reset"`). The link in the email opens `GET /api/auth/reset_password/{token}`, which renders an HTML page with a new-password form; that page submits a `POST` to the same URL, which validates the token and stores the new password hash (clearing the refresh token to invalidate old sessions). To avoid account enumeration, the request endpoint always returns the same generic message regardless of whether the email exists.
 * **User roles and access control.** Each user has a `role` of either `user` or `admin`. A reusable `RoleAccess` dependency enforces role requirements; the avatar update endpoint is restricted to administrators via `get_admin_user`.
+* **Self-healing startup.** Before migrations run, the target database is created automatically if it doesn't exist (see `src/database/create_db.py`), so a fresh server never fails with "database does not exist".
+* **Seedable users.** `seed.py` inserts pre-confirmed accounts for instant login (run locally, or automatically on every Render deploy).
+* **Boot without secrets.** `MAIL_*` and `CLOUDINARY_*` have safe defaults, so the app starts even when those credentials are not configured (those features simply stay disabled).
 
 ---
 
@@ -197,47 +240,18 @@ To prevent overload or abuse of resources, **`slowapi`** is integrated.
 
 ### ⚙️ Налаштування змінних оточення
 
-Перед запуском застосунку обов'язково створіть файл **`.env`** у кореневій директорії проєкту (поруч із `.env.example`) та заповніть його конфігураційними даними.
+У проєкті є готовий **`.env.example`**, заповнений безпечними значеннями-заглушками (без реальних креденшелів). Для швидкого старту його достатньо скопіювати — застосунок запуститься як є:
 
-#### Приклад файлу `.env`:
-
-```env
-# Параметри для Docker контейнера PostgreSQL
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres_password
-POSTGRES_DB=contacts_db
-
-# Змінна підключення до БД (використовуйте хост "db" для Docker, або "localhost" для локального запуску)
-DB_URL=postgresql+asyncpg://postgres:postgres_password@db:5432/contacts_db
-
-# Налаштування безпеки та JWT-токенів
-JWT_SECRET=ваша_секретна_строка_для_підпису_токенів_jwt
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRE_MINUTES=10080
-
-# Налаштування поштового сервера (SMTP)
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-MAIL_FROM=your_email@gmail.com
-MAIL_PORT=465
-MAIL_SERVER=smtp.gmail.com
-
-# Інтеграція з Cloudinary для збереження аватарів
-CLOUDINARY_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-
-# Налаштування Redis для кешування поточного користувача
-# (використовуйте хост "redis" для Docker, або "localhost" для локального запуску)
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_CACHE_TTL=900
-
-# Час життя (у хвилинах) токена для скидання пароля
-JWT_RESET_TOKEN_EXPIRE_MINUTES=60
+```bash
+cp .env.example .env
 ```
+
+Що варто знати:
+
+* **`POSTGRES_*`** — єдине джерело правди для підключення до БД; `DB_URL` збирається з них автоматично, тож вручну його не редагують. `POSTGRES_PORT=5434` відповідає зовнішньому порту контейнера `db` із docker-compose; якщо ви підключаєтесь до власного локального PostgreSQL — поставте `5432`.
+* **`JWT_SECRET`** — для будь-чого, окрім локальної розробки, замініть на власний довгий випадковий рядок.
+* **`MAIL_*`** і **`CLOUDINARY_*`** — необов'язкові: застосунок стартує й без них (надсилання пошти та завантаження аватара просто лишаються вимкненими, доки не задасте реальні значення).
+* **`REDIS_*`** — теж необов'язкові: якщо Redis недоступний, кеш «м'яко» деградує до прямого доступу до БД.
 
 ---
 
@@ -253,43 +267,112 @@ JWT_RESET_TOKEN_EXPIRE_MINUTES=60
 3. Сервер автоматично виконає команду `alembic upgrade head` для створення таблиць і запуститься за адресою:
    * **Додаток:** `http://localhost:8001` (відповідно до конфігурації портів `8001:8000` у вашому compose-файлі).
    * **Документація (Swagger UI):** `http://localhost:8001/docs`.
+4. Під час старту контейнер також запускає `seed.py`, тож можна одразу залогінитись seed-акаунтом (напр. `admin@example.com` / `admin12345`) — див. [Початкові користувачі](#-початкові-користувачі-seed).
 
 ---
 
 ### 💻 Локальний запуск (без Docker Compose)
 
-Якщо ви бажаєте запустити базу даних у Docker, а сам додаток виконувати на локальній машині:
+Якщо ви бажаєте запустити базу даних у Docker, а сам додаток виконувати на хості:
 
-#### 1. Запуск лише бази даних у Docker
-Запустіть контейнер PostgreSQL (він прокине порт `5434` на ваш комп'ютер):
+#### 1. Запуск бази даних (і за бажанням Redis) у Docker
 ```bash
 docker compose up -d db
+# за бажанням, щоб увімкнути шар кешування локально:
+docker compose up -d db redis
 ```
+> Redis необов'язковий — якщо він не запущений, кеш «м'яко» деградує до прямого доступу до БД.
 
-#### 2. Оновлення `.env` для локального запуску
-Оскільки додаток працюватиме на хості, змініть адресу підключення `DB_URL` у вашому `.env` на локальну та вкажіть зовнішній порт `5434`:
-```env
-DB_URL=postgresql+asyncpg://postgres:postgres_password@localhost:5434/contacts_db
+#### 2. Підготовка `.env`
+Скопіюйте шаблон; його дефолти (`POSTGRES_HOST=localhost`, `POSTGRES_PORT=5434`) уже відповідають контейнеру `db`:
+```bash
+cp .env.example .env
 ```
+> Якщо замість контейнера `db` ви користуєтесь власним локальним PostgreSQL — вкажіть у `.env` `POSTGRES_PORT=5432` (та відповідні user/password).
 
-#### 3. Встановлення залежностей та активація середовища
+#### 3. Встановлення залежностей
 ```bash
 poetry install
-poetry shell
 ```
 
 #### 4. Виконання міграцій бази даних
+Тут же автоматично створюється база, якщо її ще немає, після чого накатуються всі міграції:
 ```bash
 poetry run alembic upgrade head
 ```
 
-#### 5. Запуск сервера розробки
+#### 5. (Необов'язково) Створення заздалегідь підтверджених користувачів
+Створює готові акаунти, щоб одразу залогінитись без реєстрації:
+```bash
+poetry run python seed.py
+```
+
+#### 6. Запуск сервера розробки
 ```bash
 poetry run python main.py
 # або
 poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 Додаток буде доступний за адресою `http://127.0.0.1:8000/docs`.
+
+---
+
+### 👥 Початкові користувачі (Seed)
+
+Запуск `seed.py` додає такі **вже підтверджені** акаунти, тож можна одразу логінитись через `POST /api/auth/login` без реєстрації та підтвердження пошти. Скрипт ідемпотентний (наявні користувачі пропускаються за email), тож його безпечно запускати повторно.
+
+| Роль | Email | Пароль |
+| :--- | :--- | :--- |
+| `admin` | `admin@example.com` | `admin12345` |
+| `user` | `user@example.com` | `user12345` |
+
+> Це креденшели для локальної розробки — для іншого змініть список `SEED_USERS` у `seed.py`.
+
+---
+
+### 🧪 Запуск тестів
+
+Набір тестів **повністю самодостатній** — він працює з базою SQLite в пам'яті та in-memory підробкою Redis (`fakeredis`). Для запуску **не потрібні ані `.env`, ані PostgreSQL, ані Redis**: потрібні налаштування автоматично задаються у `tests/conftest.py`, тож свіжий клон можна тестувати одразу.
+
+#### 1. Встановлення залежностей (разом із dev-інструментами)
+```bash
+poetry install
+```
+
+#### 2. Запуск усіх тестів
+```bash
+poetry run pytest
+```
+
+#### 3. Корисні варіанти запуску
+```bash
+poetry run pytest -v                                                  # по рядку на кожен тест
+poetry run pytest tests/test_integration_auth.py                      # один файл
+poetry run pytest tests/test_integration_auth.py::test_login_success  # один тест
+poetry run pytest -x                                                  # зупинитися на першій помилці
+```
+
+#### 4. Звіт про покриття (coverage)
+Покриття попередньо налаштоване в `pyproject.toml` (вимірюється пакет `src`, поштовий помічник виключено). Звіт у терміналі з переліком непокритих рядків:
+```bash
+poetry run pytest --cov=src --cov-report=term-missing
+```
+HTML-звіт для перегляду в браузері (потім відкрийте `htmlcov/index.html`):
+```bash
+poetry run pytest --cov=src --cov-report=html
+```
+> Поточне загальне покриття — ~94%.
+
+#### Що покривають тести
+| Файл | Тип | Область |
+| :--- | :--- | :--- |
+| `tests/test_user_repository_unit.py` | Модульні | Методи репозиторію користувачів (з моком сесії БД) |
+| `tests/test_contact_repository_unit.py` | Модульні | Методи репозиторію контактів (з моком сесії БД) |
+| `tests/test_cache_unit.py` | Модульні | Серіалізація та скидання кешу користувачів у Redis |
+| `tests/test_integration_auth.py` | Інтеграційні | Реєстрація, вхід, оновлення токенів, підтвердження пошти, скидання пароля |
+| `tests/test_integration_users.py` | Інтеграційні | Профіль (`/me`) та оновлення аватара з обмеженням за роллю |
+| `tests/test_intrgration_contacts.py` | Інтеграційні | CRUD контактів, пошук, найближчі дні народження |
+| `tests/test_integration_utils.py` | Інтеграційні | Ендпоінт перевірки стану (health-check) |
 
 ---
 
@@ -339,3 +422,8 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 * **Кешування поточного користувача в Redis.** На кожен авторизований запит функція `get_current_user` спершу шукає користувача в Redis (ключ `user:{username}`). До бази даних застосунок звертається лише за відсутності запису в кеші, після чого користувач кешується із заданим часом життя (`REDIS_CACHE_TTL`). Кеш скидається під час входу, оновлення токенів, скидання пароля та зміни аватара. Якщо Redis недоступний, застосунок продовжує працювати, звертаючись напряму до бази даних.
 * **Скидання пароля.** `POST /api/auth/reset_password` надсилає короткоживучий одноразовий JWT (`token_type = "reset"`). Посилання з листа відкриває `GET /api/auth/reset_password/{token}` — HTML-сторінку з формою для нового пароля; ця сторінка надсилає `POST` на ту саму адресу, який перевіряє токен і зберігає новий хеш пароля (очищаючи refresh-токен, щоб завершити старі сесії). Щоб уникнути розкриття зареєстрованих адрес, ендпоінт запиту завжди повертає однакове повідомлення незалежно від наявності користувача.
 * **Ролі користувачів і доступ.** Кожен користувач має роль `user` або `admin`. Універсальна залежність `RoleAccess` перевіряє роль; оновлення аватара дозволено лише адміністраторам через залежність `get_admin_user`.
+* **Самовідновлюваний старт.** Перед міграціями цільова база створюється автоматично, якщо її немає (`src/database/create_db.py`), тож на свіжому сервері не буде помилки «database does not exist».
+* **Початкові користувачі (seed).** `seed.py` додає заздалегідь підтверджені акаунти для миттєвого входу (локально або автоматично під час кожного розгортання на Render).
+* **Старт без секретів.** `MAIL_*` і `CLOUDINARY_*` мають безпечні дефолти, тож застосунок стартує, навіть коли ці креденшели не налаштовані (відповідні функції просто лишаються вимкненими).
+
+---

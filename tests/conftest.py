@@ -5,6 +5,27 @@ We swap the production DB for an in-memory SQLite engine and override the
 `get_db` dependency so every router runs against it.
 """
 
+import os
+
+# Tests must run with ZERO external setup — no .env file and no real
+# Postgres/Redis. Provide safe defaults for the required settings BEFORE the
+# application (and therefore the Settings object) is imported below.
+# `setdefault` means a real environment variable, if already present, still wins.
+# The DB_URL here is never actually connected to: every test overrides `get_db`
+# with the in-memory SQLite engine defined in this file.
+os.environ.setdefault("POSTGRES_USER", "postgres")
+os.environ.setdefault("POSTGRES_PASSWORD", "postgres")
+os.environ.setdefault("POSTGRES_DB", "contacts")
+os.environ.setdefault("POSTGRES_HOST", "localhost")
+os.environ.setdefault("POSTGRES_PORT", "5432")
+os.environ.setdefault(
+    "DB_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/contacts"
+)
+os.environ.setdefault("JWT_SECRET", "test-secret-key")
+os.environ.setdefault("JWT_ALGORITHM", "HS256")
+os.environ.setdefault("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "15")
+os.environ.setdefault("JWT_REFRESH_TOKEN_EXPIRE_MINUTES", "10080")
+
 import asyncio
 
 import fakeredis.aioredis
@@ -93,9 +114,7 @@ def init_models_wrap():
                 User(
                     username=regular_user["username"],
                     email=regular_user["email"],
-                    hashed_password=Hash().get_password_hash(
-                        regular_user["password"]
-                    ),
+                    hashed_password=Hash().get_password_hash(regular_user["password"]),
                     confirmed=True,
                     avatar="https://example.com/regular.png",
                     role=UserRole.USER,

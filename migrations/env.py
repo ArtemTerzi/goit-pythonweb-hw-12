@@ -10,6 +10,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from src.database.models import Base
+from src.database.create_db import create_database_if_not_exists
 from src.conf.config import config as app_config
 
 # this is the Alembic Config object, which provides
@@ -41,6 +42,8 @@ def run_migrations(connection: Connection):
 
 
 async def run_async_migrations():
+    await create_database_if_not_exists()
+
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
