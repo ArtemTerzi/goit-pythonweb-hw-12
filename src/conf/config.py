@@ -45,11 +45,11 @@ class Settings(BaseSettings):
         JWT_RESET_TOKEN_EXPIRE_MINUTES (int): Lifespan of password reset tokens in minutes. Defaults to 60.
     """
 
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-    POSTGRES_HOST: str
-    POSTGRES_PORT: int
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "contacts"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5434
 
     DB_URL: str
     JWT_SECRET: str
