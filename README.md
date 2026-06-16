@@ -117,6 +117,52 @@ Running `seed.py` inserts the following **already-confirmed** accounts, so you c
 
 ---
 
+### 🧪 Running Tests
+
+The test suite is **fully self-contained** — it runs against an in-memory SQLite database and an in-memory Redis fake (`fakeredis`). You need **no `.env` file, no PostgreSQL, and no Redis** to run it: the required settings are provided automatically by `tests/conftest.py`, so a fresh clone can run the tests immediately.
+
+#### 1. Install dependencies (includes the dev tools)
+```bash
+poetry install
+```
+
+#### 2. Run the whole suite
+```bash
+poetry run pytest
+```
+
+#### 3. Useful variations
+```bash
+poetry run pytest -v                                                  # one line per test
+poetry run pytest tests/test_integration_auth.py                      # a single file
+poetry run pytest tests/test_integration_auth.py::test_login_success  # a single test
+poetry run pytest -x                                                  # stop at the first failure
+```
+
+#### 4. Coverage report
+Coverage is pre-configured in `pyproject.toml` (it measures the `src` package and omits the e-mail helper). For a terminal report listing the uncovered lines:
+```bash
+poetry run pytest --cov=src --cov-report=term-missing
+```
+For a browsable HTML report (then open `htmlcov/index.html`):
+```bash
+poetry run pytest --cov=src --cov-report=html
+```
+> Current total coverage is ~94%.
+
+#### What the tests cover
+| File | Type | Scope |
+| :--- | :--- | :--- |
+| `tests/test_user_repository_unit.py` | Unit | User repository methods (mocked DB session) |
+| `tests/test_contact_repository_unit.py` | Unit | Contact repository methods (mocked DB session) |
+| `tests/test_cache_unit.py` | Unit | Redis user-cache serialization and invalidation |
+| `tests/test_integration_auth.py` | Integration | Signup, login, token refresh, email confirmation, password reset |
+| `tests/test_integration_users.py` | Integration | Profile (`/me`) and role-restricted avatar update |
+| `tests/test_intrgration_contacts.py` | Integration | Contacts CRUD, search, upcoming birthdays |
+| `tests/test_integration_utils.py` | Integration | Health-check endpoint |
+
+---
+
 ### 📖 Main API Endpoints
 
 All requests to contacts and user profiles require authorization via the `Authorization: Bearer <token>` header.
@@ -279,6 +325,52 @@ poetry run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 | `user` | `user@example.com` | `user12345` |
 
 > Це креденшели для локальної розробки — для іншого змініть список `SEED_USERS` у `seed.py`.
+
+---
+
+### 🧪 Запуск тестів
+
+Набір тестів **повністю самодостатній** — він працює з базою SQLite в пам'яті та in-memory підробкою Redis (`fakeredis`). Для запуску **не потрібні ані `.env`, ані PostgreSQL, ані Redis**: потрібні налаштування автоматично задаються у `tests/conftest.py`, тож свіжий клон можна тестувати одразу.
+
+#### 1. Встановлення залежностей (разом із dev-інструментами)
+```bash
+poetry install
+```
+
+#### 2. Запуск усіх тестів
+```bash
+poetry run pytest
+```
+
+#### 3. Корисні варіанти запуску
+```bash
+poetry run pytest -v                                                  # по рядку на кожен тест
+poetry run pytest tests/test_integration_auth.py                      # один файл
+poetry run pytest tests/test_integration_auth.py::test_login_success  # один тест
+poetry run pytest -x                                                  # зупинитися на першій помилці
+```
+
+#### 4. Звіт про покриття (coverage)
+Покриття попередньо налаштоване в `pyproject.toml` (вимірюється пакет `src`, поштовий помічник виключено). Звіт у терміналі з переліком непокритих рядків:
+```bash
+poetry run pytest --cov=src --cov-report=term-missing
+```
+HTML-звіт для перегляду в браузері (потім відкрийте `htmlcov/index.html`):
+```bash
+poetry run pytest --cov=src --cov-report=html
+```
+> Поточне загальне покриття — ~94%.
+
+#### Що покривають тести
+| Файл | Тип | Область |
+| :--- | :--- | :--- |
+| `tests/test_user_repository_unit.py` | Модульні | Методи репозиторію користувачів (з моком сесії БД) |
+| `tests/test_contact_repository_unit.py` | Модульні | Методи репозиторію контактів (з моком сесії БД) |
+| `tests/test_cache_unit.py` | Модульні | Серіалізація та скидання кешу користувачів у Redis |
+| `tests/test_integration_auth.py` | Інтеграційні | Реєстрація, вхід, оновлення токенів, підтвердження пошти, скидання пароля |
+| `tests/test_integration_users.py` | Інтеграційні | Профіль (`/me`) та оновлення аватара з обмеженням за роллю |
+| `tests/test_intrgration_contacts.py` | Інтеграційні | CRUD контактів, пошук, найближчі дні народження |
+| `tests/test_integration_utils.py` | Інтеграційні | Ендпоінт перевірки стану (health-check) |
 
 ---
 
